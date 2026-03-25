@@ -50,6 +50,11 @@ Lisa/
 └── docker-compose.yml
 ```
 
-## 文档
+## Sprint 2：简历生成（已实现）
 
-详见 [doc/00-文档索引.md](doc/00-文档索引.md)
+- **对话**：`POST /api/v1/chat/stream`（`conversation_type=resume_build`，可选 `resume_id`）使用简历专用 System Prompt，SSE 事件为 JSON：`{ "e":"token","t":"..." }`、`{ "e":"meta","conversation_id":"..." }`、`{ "e":"done" }`。
+- **同步预览**：每轮对话结束后前端调用 `POST /api/v1/resumes/{id}/sync-conversation`，根据会话记录抽取结构化 JSON 并写入 `Resume` / `ResumeSection`。
+- **模板 + PDF**：Jinja2 模板在 `backend/app/templates/resume/classic.html`，导出 `POST /api/v1/resumes/{id}/export/pdf`（WeasyPrint）。**Windows** 若 PDF 报错，需按 [WeasyPrint 文档](https://doc.courtbouillon.org/weasyprint/stable/first_steps.html) 安装 GTK 等依赖。
+
+前端 `简历生成` 页：登录后自动创建草稿简历，对话流式展示，右侧实时预览，支持导出 PDF。
+

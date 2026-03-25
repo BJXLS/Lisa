@@ -65,6 +65,29 @@ export const authApi = {
 
 // ---- Resumes ----
 
+export type ResumeSection = {
+  id: string;
+  type: string;
+  title: string;
+  sort_order: number;
+  content: Record<string, unknown>;
+};
+
+export type ResumeDetail = {
+  id: string;
+  title: string;
+  target_job: string | null;
+  language: string;
+  template_id: string;
+  basic_info: Record<string, string> | null;
+  summary: string | null;
+  status: string;
+  score: number | null;
+  sections: ResumeSection[];
+  created_at: string;
+  updated_at: string;
+};
+
 export type ResumeListItem = {
   id: string;
   title: string;
@@ -78,9 +101,15 @@ export type ResumeListItem = {
 export const resumeApi = {
   list: () => request<ResumeListItem[]>("/resumes"),
   create: (payload: { title: string; target_job?: string }) =>
-    request<{ id: string }>("/resumes", {
+    request<ResumeDetail>("/resumes", {
       method: "POST",
       body: JSON.stringify(payload),
+    }),
+  get: (id: string) => request<ResumeDetail>(`/resumes/${id}`),
+  syncConversation: (resumeId: string, conversationId: string) =>
+    request<ResumeDetail>(`/resumes/${resumeId}/sync-conversation`, {
+      method: "POST",
+      body: JSON.stringify({ conversation_id: conversationId }),
     }),
   optimize: (
     resumeId: string,
@@ -95,6 +124,18 @@ export const resumeApi = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  exportPdf: async (resumeId: string): Promise<Blob> => {
+    const token = getAccessToken();
+    const res = await fetch(`${API_BASE}/resumes/${resumeId}/export/pdf`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || `PDF ${res.status}`);
+    }
+    return res.blob();
+  },
 };
 
 // ---- Interviews ----
@@ -154,13 +195,18 @@ export const interviewApi = {
     request<InterviewFeedback>(`/interviews/${id}/end`, { method: "POST" }),
 };
 
-// ---- Chat (SSE stream) ----
+/** SSE 事件：token 文本块 / 元信息 / 结束 */
+export type ChatSseEvent =
+  | { e: "token"; t: string }
+  | { e: "meta"; conversation_id: string; resume_id?: string }
+  | { e: "done" };
 
-export async function* chatStream(
-  message: string,
-  conversationType: string = "general",
-  conversationId?: string,
-): AsyncGenerator<string, void, unknown> {
+export async function* chatStream(options: {
+  message: string;
+  conversationType?: string;
+  conversationId?: string;
+  resumeId?: string;
+}): AsyncGenerator<ChatSseEvent, void, unknown> {
   const token = getAccessToken();
   const res = await fetch(`${API_BASE}/chat/stream`, {
     method: "POST",
@@ -169,9 +215,10 @@ export async function* chatStream(
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify({
-      message,
-      conversation_type: conversationType,
-      conversation_id: conversationId,
+      message: options.message,
+      conversation_type: options.conversationType ?? "general",
+      conversation_id: options.conversationId ?? null,
+      resume_id: options.resumeId ?? null,
     }),
   });
 
@@ -190,10 +237,15 @@ export async function* chatStream(
     buffer = lines.pop() ?? "";
 
     for (const line of lines) {
-      if (line.startsWith("data: ")) {
-        const data = line.slice(6);
-        if (data === "[DONE]") return;
-        yield data;
+      if (!line.startsWith("data: ")) continue;
+      const raw = line.slice(6).trim();
+      if (!raw) continue;
+      try {
+        const obj = JSON.parse(raw) as ChatSseEvent;
+        if (obj.e === "done") return;
+        yield obj;
+      } catch {
+        yield { e: "token", t: raw };
       }
     }
   }

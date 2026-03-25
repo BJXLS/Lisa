@@ -5,6 +5,7 @@
 
 import json
 import logging
+from collections.abc import AsyncGenerator
 
 from app.services.ai_engine.llm_router import LLMRouter
 from app.services.ai_engine.prompt_manager import PromptManager
@@ -36,6 +37,75 @@ class ResumeAgent:
             task_type="resume_generation",
             temperature=0.7,
         )
+
+    def _build_resume_messages(
+        self,
+        history: list[dict],
+        resume_context: dict | None,
+    ) -> list[dict]:
+        system_prompt = self.prompts.get_resume_builder_prompt()
+        if resume_context:
+            system_prompt += (
+                "\n\n当前已采集的简历信息（请在此基础上继续追问或确认）：\n"
+                f"{json.dumps(resume_context, ensure_ascii=False, indent=2)}"
+            )
+        messages: list[dict] = [{"role": "system", "content": system_prompt}]
+        for msg in history:
+            role = "assistant" if msg["role"] == "assistant" else "user"
+            messages.append({"role": role, "content": msg["content"]})
+        return messages
+
+    async def stream_chat_for_resume(
+        self,
+        history: list[dict],
+        resume_context: dict | None = None,
+    ) -> AsyncGenerator[str, None]:
+        messages = self._build_resume_messages(history, resume_context)
+        async for chunk in self.llm.stream(
+            messages=messages,
+            task_type="resume_generation",
+            temperature=0.7,
+        ):
+            yield chunk
+
+    async def extract_snapshot_from_transcript(
+        self,
+        transcript_lines: list[str],
+    ) -> dict:
+        system = self.prompts.get_resume_snapshot_extract_prompt()
+        user = "对话记录：\n" + "\n".join(transcript_lines)
+        messages = [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ]
+        raw = await self.llm.complete(
+            messages=messages,
+            task_type="keyword_extraction",
+            temperature=0.1,
+            max_tokens=4096,
+        )
+        try:
+            cleaned = raw.strip()
+            if cleaned.startswith("```"):
+                cleaned = cleaned.split("\n", 1)[1]
+                cleaned = cleaned.rsplit("```", 1)[0]
+            return json.loads(cleaned)
+        except (json.JSONDecodeError, IndexError):
+            logger.warning("Failed to parse resume snapshot JSON")
+            return {
+                "title": "",
+                "target_job": "",
+                "summary": "",
+                "basic_info": {
+                    "name": "",
+                    "email": "",
+                    "phone": "",
+                    "city": "",
+                    "linkedin_url": "",
+                    "website": "",
+                },
+                "sections": [],
+            }
 
     async def optimize_resume(
         self,

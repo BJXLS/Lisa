@@ -80,3 +80,7 @@ class OptimizeResult(BaseModel):
     dimensions: dict
     suggestions: list[dict]
     keywords: dict
+
+
+class SyncConversationBody(BaseModel):
+    conversation_id: uuid.UUID

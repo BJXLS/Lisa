@@ -38,7 +38,7 @@ export default function ResumeOptimizerPage() {
       original: "参与了公司内部组件库的建设",
       improved:
         "主导搭建公司级 React 组件库（60+ 组件），被 8 个业务线采用，开发效率提升 30%",
-      reason: ""参与"表述模糊，建议明确角色和量化影响",
+      reason: "「参与」表述模糊，建议明确角色和量化影响",
     },
   ];
 

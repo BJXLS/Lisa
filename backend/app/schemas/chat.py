@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 class ChatRequest(BaseModel):
     conversation_id: uuid.UUID | None = None
+    resume_id: uuid.UUID | None = None
     message: str
     conversation_type: str = "general"
     context: dict | None = None
