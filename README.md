@@ -39,7 +39,7 @@ npm run dev
 
 ## 项目结构
 
-```
+```text
 Lisa/
 ├── backend/          # FastAPI 后端
 │   ├── app/          # 应用代码
@@ -58,3 +58,48 @@ Lisa/
 
 前端 `简历生成` 页：登录后自动创建草稿简历，对话流式展示，右侧实时预览，支持导出 PDF。
 
+## Sprint 3：简历优化（进行中，核心已实现）
+
+已完成能力：
+
+- **简历导入解析（PDF/Word/文本）**
+  - 接口：`POST /api/v1/resumes/import/file`（multipart）
+  - 支持：`.pdf`、`.docx`、`.txt/.md`
+  - 后端会抽取文本并调用结构化提取，自动创建 `Resume` + `ResumeSection`
+
+- **JD 输入与解析**
+  - 接口：`POST /api/v1/resumes/parse-jd`
+  - 输入：`{ "job_description": "..." }`
+  - 输出：岗位名、技能关键词、年限/学历要求、关键词列表
+
+- **简历优化分析引擎**
+  - 接口：`POST /api/v1/resumes/{id}/optimize`
+  - 输出：总分、多维度评分、优化建议、关键词覆盖/缺失
+
+- **ATS 兼容性检测**
+  - 接口：`GET /api/v1/resumes/{id}/ats-check?job_description=...`
+  - 输出：ATS 评分、问题列表、改进建议
+
+- **一键应用优化**
+  - 接口：`POST /api/v1/resumes/{id}/apply-optimizations`
+  - 输入：优化建议数组（含 original/improved）
+  - 行为：将建议批量应用到 summary 与 sections 文本内容
+
+- **优化应用回滚（新增）**
+  - 接口：`POST /api/v1/resumes/{id}/rollback-last-optimization`
+  - 行为：回滚最近一次由 AI 优化应用创建的快照
+
+- **前端优化页联通真实后端**
+  - 页面：`/resume-optimizer`
+  - 流程：选择/上传简历 -> 输入 JD -> 分析 -> 展示建议和关键词/ATS -> 单条/高优/全部应用 -> 可回滚
+  - 已移除该页原有 mock 展示逻辑
+
+快速验收建议：
+
+1. 登录后进入 `简历优化` 页面。
+2. 上传一份 `pdf/docx/txt` 简历，或直接选择已有简历。
+3. 粘贴一个岗位 JD，点击“开始分析”。
+4. 检查是否展示：总分、建议列表、关键词覆盖/缺失、ATS 检测结果。
+5. 点击“一键应用全部优化”，再次分析确认文本已更新。
+6. 点击“仅应用高优建议”，确认仅高优建议被标记为已应用。
+7. 点击“撤销最近一次应用”，确认 ATS 分数与内容可回退。

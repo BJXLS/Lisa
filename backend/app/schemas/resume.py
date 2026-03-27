@@ -84,3 +84,22 @@ class OptimizeResult(BaseModel):
 
 class SyncConversationBody(BaseModel):
     conversation_id: uuid.UUID
+
+
+class ParsedJdOut(BaseModel):
+    target_job: str
+    skills: list[str]
+    years_requirement: str
+    education_requirement: str
+    keywords: list[str]
+
+
+class ApplyOptimizationsRequest(BaseModel):
+    suggestions: list[dict]
+    apply_summary: bool = True
+
+
+class AtsCheckResult(BaseModel):
+    score: int
+    issues: list[str]
+    suggestions: list[str]

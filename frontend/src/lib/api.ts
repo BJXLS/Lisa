@@ -98,6 +98,21 @@ export type ResumeListItem = {
   updated_at: string;
 };
 
+export type OptimizeSuggestion = {
+  priority: string;
+  type: string;
+  original: string;
+  improved: string;
+  reason: string;
+};
+
+export type OptimizeAnalysis = {
+  overall_score: number;
+  dimensions: Record<string, { score?: number; detail?: string }>;
+  suggestions: OptimizeSuggestion[];
+  keywords: { covered?: string[]; missing?: string[] };
+};
+
 export const resumeApi = {
   list: () => request<ResumeListItem[]>("/resumes"),
   create: (payload: { title: string; target_job?: string }) =>
@@ -115,15 +130,55 @@ export const resumeApi = {
     resumeId: string,
     payload: { job_description?: string },
   ) =>
-    request<{
-      overall_score: number;
-      dimensions: Record<string, unknown>;
-      suggestions: Array<Record<string, unknown>>;
-      keywords: Record<string, unknown>;
-    }>(`/resumes/${resumeId}/optimize`, {
+    request<OptimizeAnalysis>(`/resumes/${resumeId}/optimize`, {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  parseJd: (payload: { job_description: string }) =>
+    request<{
+      target_job: string;
+      skills: string[];
+      years_requirement: string;
+      education_requirement: string;
+      keywords: string[];
+    }>("/resumes/parse-jd", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  importFile: async (file: File, title?: string): Promise<ResumeDetail> => {
+    const token = getAccessToken();
+    const fd = new FormData();
+    fd.append("file", file);
+    if (title?.trim()) fd.append("title", title.trim());
+
+    const res = await fetch(`${API_BASE}/resumes/import/file`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: fd,
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || `导入失败 ${res.status}`);
+    }
+    return (await res.json()) as ResumeDetail;
+  },
+  applyOptimizations: (resumeId: string, suggestions: OptimizeSuggestion[]) =>
+    request<ResumeDetail>(`/resumes/${resumeId}/apply-optimizations`, {
+      method: "POST",
+      body: JSON.stringify({ suggestions, apply_summary: true }),
+    }),
+  rollbackLastOptimization: (resumeId: string) =>
+    request<ResumeDetail>(`/resumes/${resumeId}/rollback-last-optimization`, {
+      method: "POST",
+    }),
+  atsCheck: (resumeId: string, jobDescription?: string) => {
+    const query = jobDescription?.trim()
+      ? `?job_description=${encodeURIComponent(jobDescription)}`
+      : "";
+    return request<{ score: number; issues: string[]; suggestions: string[] }>(
+      `/resumes/${resumeId}/ats-check${query}`,
+    );
+  },
   exportPdf: async (resumeId: string): Promise<Blob> => {
     const token = getAccessToken();
     const res = await fetch(`${API_BASE}/resumes/${resumeId}/export/pdf`, {
