@@ -73,7 +73,7 @@ async def create_interview(
     result = await db.execute(
         select(Interview)
         .where(Interview.id == interview.id)
-        .options(selectinload(Interview.messages))
+        .options(selectinload(Interview.messages), selectinload(Interview.feedback))
     )
     return result.scalar_one()
 
@@ -87,7 +87,7 @@ async def get_interview(
     result = await db.execute(
         select(Interview)
         .where(Interview.id == interview_id, Interview.user_id == current_user.id)
-        .options(selectinload(Interview.messages))
+        .options(selectinload(Interview.messages), selectinload(Interview.feedback))
     )
     interview = result.scalar_one_or_none()
     if interview is None:
@@ -105,7 +105,7 @@ async def submit_answer(
     result = await db.execute(
         select(Interview)
         .where(Interview.id == interview_id, Interview.user_id == current_user.id)
-        .options(selectinload(Interview.messages))
+        .options(selectinload(Interview.messages), selectinload(Interview.feedback))
     )
     interview = result.scalar_one_or_none()
     if interview is None:
@@ -132,6 +132,7 @@ async def submit_answer(
         target_job=interview.target_job,
         interview_type=interview.type,
         difficulty=interview.difficulty,
+        job_description=interview.job_description,
     )
 
     interviewer_msg = InterviewMessage(
@@ -146,7 +147,7 @@ async def submit_answer(
     result = await db.execute(
         select(Interview)
         .where(Interview.id == interview.id)
-        .options(selectinload(Interview.messages))
+        .options(selectinload(Interview.messages), selectinload(Interview.feedback))
     )
     return result.scalar_one()
 
@@ -182,7 +183,40 @@ async def end_interview(
         interview_type=interview.type,
     )
 
-    feedback = InterviewFeedback(interview_id=interview.id, **feedback_data)
+    payload = _normalize_feedback_payload(feedback_data)
+    feedback = InterviewFeedback(interview_id=interview.id, **payload)
     db.add(feedback)
     await db.flush()
     return feedback
+
+
+def _normalize_feedback_payload(data: dict) -> dict:
+    def score_field(key: str, default: int = 0) -> int:
+        try:
+            v = data.get(key)
+            return int(v) if v is not None else default
+        except (TypeError, ValueError):
+            return default
+
+    def as_json_list(key: str) -> list:
+        v = data.get(key)
+        if v is None:
+            return []
+        if isinstance(v, list):
+            return v
+        return [v]
+
+    return {
+        "overall_score": score_field("overall_score"),
+        "content_score": score_field("content_score"),
+        "structure_score": score_field("structure_score"),
+        "expression_score": score_field("expression_score"),
+        "professional_score": score_field("professional_score"),
+        "communication_score": score_field("communication_score"),
+        "summary": str(data.get("summary") or ""),
+        "strengths": as_json_list("strengths"),
+        "improvements": as_json_list("improvements"),
+        "question_feedbacks": as_json_list("question_feedbacks"),
+        "suggestions": as_json_list("suggestions"),
+        "recommended_topics": as_json_list("recommended_topics"),
+    }

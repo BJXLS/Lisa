@@ -39,14 +39,6 @@ class InterviewMessageOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class InterviewDetailOut(InterviewOut):
-    messages: list[InterviewMessageOut] = []
-
-
-class AnswerRequest(BaseModel):
-    content: str
-
-
 class InterviewFeedbackOut(BaseModel):
     overall_score: int
     content_score: int
@@ -62,3 +54,12 @@ class InterviewFeedbackOut(BaseModel):
     recommended_topics: list
 
     model_config = {"from_attributes": True}
+
+
+class InterviewDetailOut(InterviewOut):
+    messages: list[InterviewMessageOut] = []
+    feedback: InterviewFeedbackOut | None = None
+
+
+class AnswerRequest(BaseModel):
+    content: str

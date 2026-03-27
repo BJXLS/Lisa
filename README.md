@@ -103,3 +103,27 @@ Lisa/
 5. 点击“一键应用全部优化”，再次分析确认文本已更新。
 6. 点击“仅应用高优建议”，确认仅高优建议被标记为已应用。
 7. 点击“撤销最近一次应用”，确认 ATS 分数与内容可回退。
+
+## Sprint 4：模拟面试 - 基础版（已实现联调）
+
+- **会话管理**
+  - 列表：`GET /api/v1/interviews`
+  - 创建：`POST /api/v1/interviews`（`target_job`、`type`、`difficulty`、`job_description` 可选）
+  - 详情：`GET /api/v1/interviews/{id}`（含 `messages`；已结束时含 `feedback`）
+  - 作答：`POST /api/v1/interviews/{id}/answer`
+  - 结束并生成报告：`POST /api/v1/interviews/{id}/end`
+
+- **面试官 Agent**
+  - `InterviewAgent`：开场、`generate_response`（追问中注入 JD，与开场一致）、`generate_feedback`（JSON 报告）
+  - 支持类型：`behavioral` / `technical` / `mixed` / `stress`（Prompt 与 Sprint 2 设计一致）
+
+- **前端**
+  - 模拟面试：`/mock-interview`（登录后走真实 API，非本地 mock）
+  - 面试记录：`/interviews`
+  - 独立报告页：`/mock-interview/{id}/report`（已完成会话可分享链接）
+
+快速验收：
+
+1. 登录后打开「模拟面试」，填写岗位与可选 JD，选择类型与难度，开始面试。
+2. 多轮问答后点击「结束面试」，应看到真实反馈（总分、五维、亮点/改进/建议/推荐主题）。
+3. 打开「面试记录」，已完成项可进入「查看报告」；独立报告页内容与结束页一致。

@@ -49,12 +49,15 @@ class InterviewAgent:
         target_job: str,
         interview_type: str = "behavioral",
         difficulty: str = "medium",
+        job_description: str | None = None,
     ) -> str:
         system_prompt = self.prompts.get_interviewer_prompt(
             interview_type=interview_type,
             target_job=target_job,
             difficulty=difficulty,
         )
+        if job_description:
+            system_prompt += f"\n\n岗位JD参考：\n{job_description[:2000]}"
 
         role_map = {"interviewer": "assistant", "candidate": "user", "system": "system"}
         messages = [{"role": "system", "content": system_prompt}]

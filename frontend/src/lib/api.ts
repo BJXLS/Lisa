@@ -212,6 +212,7 @@ export type InterviewMessage = {
 
 export type InterviewDetail = InterviewListItem & {
   messages: InterviewMessage[];
+  feedback?: InterviewFeedback | null;
 };
 
 export type InterviewFeedback = {
@@ -226,6 +227,7 @@ export type InterviewFeedback = {
   improvements: string[];
   question_feedbacks: Array<Record<string, unknown>>;
   suggestions: string[];
+  recommended_topics?: string[];
 };
 
 export const interviewApi = {

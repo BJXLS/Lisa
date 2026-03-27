@@ -27,7 +27,10 @@ export default function Sidebar() {
           主菜单
         </p>
         {NAV_ITEMS.map((item) => {
-          const active = pathname === item.href;
+          const active =
+            pathname === item.href ||
+            (item.href === "/mock-interview" &&
+              pathname?.startsWith("/mock-interview"));
           return (
             <Link
               key={item.href}
@@ -56,8 +59,12 @@ export default function Sidebar() {
           <span className="text-base">📁</span> 简历库
         </Link>
         <Link
-          href="#"
-          className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-50"
+          href="/interviews"
+          className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm hover:bg-slate-50 ${
+            pathname === "/interviews"
+              ? "bg-emerald-50 text-emerald-700 font-medium"
+              : "text-slate-600"
+          }`}
         >
           <span className="text-base">📋</span> 面试记录
         </Link>
